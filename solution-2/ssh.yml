@@ -1,0 +1,10 @@
+---
+
+- name: Ansible ssh Playbook
+  connection: local
+  hosts: localhost
+  become: root
+  
+   roles:
+    - { role: }
+

@@ -1,0 +1,65 @@
+---
+  tasks:
+  - name: "Create user accounts"
+    user:
+      name: "{{ item }}"
+      groups: "admin"
+    with_items: "{{ users }}"
+        
+  - name: "Add authorized keys"
+    authorized_key:
+      user: "{{ item }}"
+          state: present
+      key: "{{ lookup('file', 'files/'+ item + '.key.pub') }}"
+    with_items: "{{ users }}"
+  
+  - name: "Allow admin users to sudo without a password"
+    lineinfile:
+      dest: "/etc/sudoers" # path: in version 2.3
+      state: "present"
+      regexp: "^%admin"
+      line: "%admin ALL=(ALL) NOPASSWD: ALL"
+          
+     environment:
+       VAR1: value1
+       VAR2: value2
+        
+   - name: Setup alternate SSH port
+     lineinfile:
+       dest: "/etc/ssh/sshd_config"
+       regexp: "^Port"
+       line: "Port 10022"
+     notify: "restart sshd"
+         
+   - name: Disable remote root login
+     lineinfile: dest=/etc/ssh/sshd_config regexp="^#?PermitRootLogin" line="PermitRootLogin no"
+     notify: restart sshd
+
+   - name: Disable password login
+     lineinfile: dest=/etc/ssh/sshd_config regexp="^(#\s*)?PasswordAuthentication" line="PasswordAuthentication no"
+     notify: restart sshd 
+         
+   - name: Listen only on ipv4
+     lineinfile: dest=/etc/ssh/sshd_config regexp="^#?network_ipv6_enable" line="network_ipv6_enable false"
+     notify: restart sshd 
+        
+   - name: Inserting a line for idle logout  
+     lineinfile:
+        path: /etc/ssh/sshd_config
+        line: ClientAliveInterval 10m 
+        line: ClientAliveCountMax 0           
+        insertafter: port  
+          
+   - name: Add ec2 SG group rule 
+     ec2_group:
+         name: example
+     description: an example EC2 group
+     vpc_id: 12345
+     region: eu-west-1
+     aws_secret_key: SECRET
+     aws_access_key: ACCESS
+     rules:
+     - proto: tcp
+       from_port: 10022
+       to_port: 10022
+       cidr_ip: 1.2.3.4/32
